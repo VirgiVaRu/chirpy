@@ -22,11 +22,11 @@ func validateChirpHandler(w http.ResponseWriter, req *http.Request) {
 		respondWithError(w, 400, "Chirp is too long")
 	} else {
 		type validChirp struct {
-			Valid bool `json:"valid"`
+			CleanMessage string `json:"cleaned_body"`
 		}
 
 		payload := validChirp{
-			Valid: true,
+			CleanMessage: removeProfanity(c.Message),
 		}
 		respondWithJSON(w, 200, payload)
 	}
