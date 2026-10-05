@@ -14,12 +14,14 @@ import (
 
 type apiConfig struct {
 	fileserverHits atomic.Int32
-	data           *database.Queries
+	pf             string
+	db             *database.Queries
 }
 
 func main() {
 	godotenv.Load()
 	dbURL := os.Getenv("DB_URL")
+	platform := os.Getenv("PLATFORM")
 	db, err := sql.Open("postgres", dbURL)
 	dbQueries := database.New(db)
 	if err != nil {
@@ -30,7 +32,8 @@ func main() {
 	const rootFilePath = "."
 	handler := http.FileServer(http.Dir(rootFilePath))
 	apiCfg := apiConfig{
-		data: dbQueries,
+		pf: platform,
+		db: dbQueries,
 	}
 
 	mux := http.NewServeMux()
@@ -39,6 +42,7 @@ func main() {
 	mux.HandleFunc("POST /api/validate_chirp", validateChirpHandler)
 	mux.HandleFunc("GET /admin/metrics", apiCfg.metricsHandler)
 	mux.HandleFunc("POST /admin/reset", apiCfg.resetHandler)
+	mux.HandleFunc("POST /api/users", apiCfg.usersHandler)
 
 	server := http.Server{
 		Handler: mux,

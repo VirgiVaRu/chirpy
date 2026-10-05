@@ -5,7 +5,13 @@ import (
 )
 
 func (cfg *apiConfig) resetHandler(w http.ResponseWriter, req *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	cfg.fileserverHits.Store(0)
+	if cfg.pf != "dev" {
+		respondWithError(w, 403, "Forbidden")
+	} else {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		cfg.fileserverHits.Store(0)
+		cfg.db.DeleteUsers(req.Context())
+	}
+
 }
