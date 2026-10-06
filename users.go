@@ -5,7 +5,8 @@ import (
 	"log"
 	"net/http"
 	"time"
-	"uuid"
+
+	"github.com/google/uuid"
 )
 
 type User struct {
@@ -33,7 +34,7 @@ func (cfg *apiConfig) usersHandler(w http.ResponseWriter, req *http.Request) {
 			respondWithError(w, 500, "Something went wrong")
 		} else {
 			payload := User{
-				Id:        uuid.UUID(user.ID),
+				Id:        user.ID,
 				CreateAt:  user.CreatedAt,
 				UpdatedAt: user.UpdatedAt,
 				Email:     user.Email,

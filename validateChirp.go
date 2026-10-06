@@ -1,33 +1,10 @@
 package main
 
-import (
-	"encoding/json"
-	"log"
-	"net/http"
-)
+func validateChirp(msg string) bool {
 
-func validateChirpHandler(w http.ResponseWriter, req *http.Request) {
-
-	type chirp struct {
-		Message string `json:"body"`
-	}
-
-	decoder := json.NewDecoder(req.Body)
-	c := chirp{}
-	err := decoder.Decode(&c)
-	if err != nil {
-		log.Printf("Error decoding request body: %s", err)
-		respondWithError(w, 500, "Something went wrong")
-	} else if len(c.Message) > 140 {
-		respondWithError(w, 400, "Chirp is too long")
+	if len(msg) > 140 {
+		return false
 	} else {
-		type validChirp struct {
-			CleanMessage string `json:"cleaned_body"`
-		}
-
-		payload := validChirp{
-			CleanMessage: removeProfanity(c.Message),
-		}
-		respondWithJSON(w, 200, payload)
+		return true
 	}
 }
