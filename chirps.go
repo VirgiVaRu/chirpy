@@ -42,7 +42,7 @@ func (cfg *apiConfig) chirpsHandler(w http.ResponseWriter, req *http.Request) {
 			Id:        uuid.UUID(c.ID),
 			CreatedAt: c.CreatedAt,
 			UpdatedAt: c.UpdatedAt,
-			Body:      c.Body,
+			Body:      removeProfanity(c.Body),
 			UserID:    c.UserID,
 		}
 		if err != nil {
@@ -53,5 +53,24 @@ func (cfg *apiConfig) chirpsHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	} else {
 		respondWithError(w, 400, "Chirp is too long")
+	}
+}
+
+func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, req *http.Request) {
+	chirps, err := cfg.db.GetAllChirps(req.Context())
+	if err != nil {
+		respondWithError(w, 500, "Something went wrong")
+	} else {
+		var jsonChirps []Chirp
+		for _, chirp := range chirps {
+			jsonChirps = append(jsonChirps, Chirp{
+				Id:        chirp.ID,
+				CreatedAt: chirp.CreatedAt,
+				UpdatedAt: chirp.UpdatedAt,
+				Body:      chirp.Body,
+				UserID:    chirp.UserID,
+			})
+		}
+		respondWithJSON(w, 200, jsonChirps)
 	}
 }
