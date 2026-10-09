@@ -59,6 +59,7 @@ func (cfg *apiConfig) chirpsHandler(w http.ResponseWriter, req *http.Request) {
 func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, req *http.Request) {
 	chirps, err := cfg.db.GetAllChirps(req.Context())
 	if err != nil {
+		log.Printf("Error when retrieving chirps: %s", err)
 		respondWithError(w, 500, "Something went wrong")
 	} else {
 		var jsonChirps []Chirp
@@ -73,4 +74,28 @@ func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, req *http.Reque
 		}
 		respondWithJSON(w, 200, jsonChirps)
 	}
+}
+
+func (cfg *apiConfig) getSingleChirpHandler(w http.ResponseWriter, req *http.Request) {
+	parameter := req.PathValue("chirpID")
+	id, err := uuid.Parse(parameter)
+	if err != nil {
+		log.Printf("Error when parsing the Chirp ID: %s", err)
+		respondWithError(w, 404, "Not a valid ID")
+		return
+	}
+	chirp, err := cfg.db.GetSingleChirp(req.Context(), uuid.UUID(id))
+	if err != nil {
+		log.Printf("Error when retrieving chirp: %s", err)
+		respondWithError(w, 404, "ID not found")
+		return
+	}
+	payload := Chirp{
+		Id:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
+	}
+	respondWithJSON(w, 200, payload)
 }
