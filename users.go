@@ -16,6 +16,7 @@ type User struct {
 	CreateAt  time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Email     string    `json:"email"`
+	Token     string    `json:"token"`
 }
 
 func (cfg *apiConfig) usersHandler(w http.ResponseWriter, req *http.Request) {
@@ -59,8 +60,9 @@ func (cfg *apiConfig) usersHandler(w http.ResponseWriter, req *http.Request) {
 
 func (cfg *apiConfig) loginHandler(w http.ResponseWriter, req *http.Request) {
 	type Payload struct {
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Password         string `json:"password"`
+		Email            string `json:"email"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
 	}
 	decoder := json.NewDecoder(req.Body)
 	payload := Payload{}
@@ -83,11 +85,21 @@ func (cfg *apiConfig) loginHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if authenticated {
+		if payload.ExpiresInSeconds > 3600 || payload.ExpiresInSeconds == 0 {
+			payload.ExpiresInSeconds = 3600
+		}
+		expiresIn := time.Duration(payload.ExpiresInSeconds * int(time.Second))
+		token, err := auth.MakeJWT(user.ID, cfg.secret, expiresIn)
+		if err != nil {
+			log.Printf("Error creating the JWT: %s", err)
+			respondWithError(w, 500, "Something went wrong with authorization")
+		}
 		verifiedUser := User{
 			Id:        user.ID,
 			CreateAt:  user.CreatedAt,
 			UpdatedAt: user.UpdatedAt,
 			Email:     user.Email,
+			Token:     token,
 		}
 		respondWithJSON(w, 200, verifiedUser)
 	} else {

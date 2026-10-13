@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
@@ -51,6 +52,53 @@ func TestJWT(t *testing.T) {
 			actual, err := ValidateJWT(tokenString, c.tokenSecret)
 			if actual != c.expected || (err != nil) != c.expectedErr {
 				t.Errorf("got: %v\nwant: %v\nerror found: %v\n", actual, c.expected, err)
+			}
+		})
+	}
+}
+
+func headerBuilder(key, value string) http.Header {
+	h := http.Header{}
+	h.Set(key, value)
+	return h
+}
+
+func TestGetBearerToken(t *testing.T) {
+
+	cases := []struct {
+		name           string
+		header         http.Header
+		expected       string
+		expectedErrors bool
+	}{
+		{
+			name:           "everything is correct",
+			header:         headerBuilder("Authorization", "Bearer token_string"),
+			expected:       "token_string",
+			expectedErrors: false,
+		},
+		{
+			name:           "no authentication found",
+			header:         headerBuilder("Content-Type", "application/json"),
+			expected:       "",
+			expectedErrors: true,
+		},
+		{
+			name:           "wrong format",
+			header:         headerBuilder("Authorization", "Something token_string"),
+			expected:       "",
+			expectedErrors: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			actual, err := GetBearerToken(c.header)
+			if (err != nil) != c.expectedErrors {
+				t.Errorf("found %v when expected errors were: %v\n", err, c.expectedErrors)
+			}
+			if actual != c.expected {
+				t.Errorf("got: %v\nexpected: %v\n", actual, c.expected)
 			}
 		})
 	}

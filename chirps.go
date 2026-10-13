@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/virgivaru/chirpy/internal/auth"
 	"github.com/virgivaru/chirpy/internal/database"
 )
 
@@ -22,8 +23,7 @@ type Chirp struct {
 func (cfg *apiConfig) chirpsHandler(w http.ResponseWriter, req *http.Request) {
 
 	type Payload struct {
-		Body   string    `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}
 
 	decoder := json.NewDecoder(req.Body)
@@ -32,10 +32,24 @@ func (cfg *apiConfig) chirpsHandler(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		log.Printf("Error decoding request body: %s", err)
 		respondWithError(w, 500, "Something went wrong")
-	} else if validateChirp(payload.Body) {
+		return
+	}
+	if validateChirp(payload.Body) {
+		tokenString, err := auth.GetBearerToken(req.Header)
+		if err != nil {
+			log.Printf("Failed to get the token string: %s", err)
+			respondWithError(w, 500, "Something went wrong")
+			return
+		}
+		userID, err := auth.ValidateJWT(tokenString, cfg.secret)
+		if err != nil {
+			log.Printf("Failed to validate the user: %s", err)
+			respondWithError(w, 401, "Unauthorized access")
+			return
+		}
 		params := database.CreateChirpParams{
 			Body:   payload.Body,
-			UserID: payload.UserID,
+			UserID: userID,
 		}
 		c, err := cfg.db.CreateChirp(req.Context(), params)
 		chirp := Chirp{
