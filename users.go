@@ -12,11 +12,12 @@ import (
 )
 
 type User struct {
-	Id        uuid.UUID `json:"id"`
-	CreateAt  time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
-	Token     string    `json:"token"`
+	Id           uuid.UUID `json:"id"`
+	CreateAt     time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Email        string    `json:"email"`
+	Token        string    `json:"token"`
+	RefreshToken string    `json:"refresh_token"`
 }
 
 func (cfg *apiConfig) usersHandler(w http.ResponseWriter, req *http.Request) {
@@ -56,54 +57,4 @@ func (cfg *apiConfig) usersHandler(w http.ResponseWriter, req *http.Request) {
 			respondWithJSON(w, 201, payload)
 		}
 	}
-}
-
-func (cfg *apiConfig) loginHandler(w http.ResponseWriter, req *http.Request) {
-	type Payload struct {
-		Password         string `json:"password"`
-		Email            string `json:"email"`
-		ExpiresInSeconds int    `json:"expires_in_seconds"`
-	}
-	decoder := json.NewDecoder(req.Body)
-	payload := Payload{}
-	err := decoder.Decode(&payload)
-	if err != nil {
-		log.Printf("Error decoding request body: %s", err)
-		respondWithError(w, 500, "Something went wrong")
-		return
-	}
-	user, err := cfg.db.RetrieveUser(req.Context(), payload.Email)
-	if err != nil {
-		log.Printf("Error retrieving user: %s", err)
-		respondWithError(w, 401, "Incorrect email or password")
-		return
-	}
-	authenticated, err := auth.CheckPasswordHash(payload.Password, user.HashedPassword)
-	if err != nil {
-		log.Printf("Error checking the password: %s", err)
-		respondWithError(w, 500, "Something went wrong")
-		return
-	}
-	if authenticated {
-		if payload.ExpiresInSeconds > 3600 || payload.ExpiresInSeconds == 0 {
-			payload.ExpiresInSeconds = 3600
-		}
-		expiresIn := time.Duration(payload.ExpiresInSeconds * int(time.Second))
-		token, err := auth.MakeJWT(user.ID, cfg.secret, expiresIn)
-		if err != nil {
-			log.Printf("Error creating the JWT: %s", err)
-			respondWithError(w, 500, "Something went wrong with authorization")
-		}
-		verifiedUser := User{
-			Id:        user.ID,
-			CreateAt:  user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-			Email:     user.Email,
-			Token:     token,
-		}
-		respondWithJSON(w, 200, verifiedUser)
-	} else {
-		respondWithError(w, 401, "Incorrect email or password")
-	}
-
 }
