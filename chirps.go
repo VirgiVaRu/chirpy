@@ -101,7 +101,7 @@ func (cfg *apiConfig) getSingleChirpHandler(w http.ResponseWriter, req *http.Req
 	chirp, err := cfg.db.GetSingleChirp(req.Context(), uuid.UUID(id))
 	if err != nil {
 		log.Printf("Error when retrieving chirp: %s", err)
-		respondWithError(w, 404, "ID not found")
+		respondWithError(w, 404, "Chirp not found")
 		return
 	}
 	payload := Chirp{
@@ -112,4 +112,47 @@ func (cfg *apiConfig) getSingleChirpHandler(w http.ResponseWriter, req *http.Req
 		UserID:    chirp.UserID,
 	}
 	respondWithJSON(w, 200, payload)
+}
+
+func (cfg *apiConfig) deleteChirpHandler(w http.ResponseWriter, req *http.Request) {
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		log.Printf("Error retrieving the token from the header: %v", err)
+		respondWithError(w, 401, "Authentication failed")
+		return
+	}
+	userID, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		log.Printf("Error validating the user: %v", err)
+		respondWithError(w, 401, "Authentication failed")
+		return
+	}
+
+	parameter := req.PathValue("chirpID")
+	chirpID, err := uuid.Parse(parameter)
+	if err != nil {
+		log.Printf("Error when parsing the Chirp ID: %s", err)
+		respondWithError(w, 404, "Not a valid chirp ID")
+		return
+	}
+	chirp, err := cfg.db.GetSingleChirp(req.Context(), chirpID)
+	if err != nil {
+		log.Printf("Error when retrieving chirp: %s", err)
+		respondWithError(w, 404, "Chirp not found")
+		return
+	}
+
+	if chirp.UserID != userID {
+		w.WriteHeader(403)
+		return
+	}
+
+	err = cfg.db.DeleteChirp(req.Context(), chirpID)
+	if err != nil {
+		log.Printf("Error when deleting chirp: %s", err)
+		respondWithError(w, 500, "Failed to delete chirp")
+		return
+	}
+
+	w.WriteHeader(204)
 }
