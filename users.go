@@ -18,6 +18,7 @@ type User struct {
 	Email        string    `json:"email"`
 	Token        string    `json:"token"`
 	RefreshToken string    `json:"refresh_token"`
+	IsChirpyRed  bool      `json:"is_chirpy_red"`
 }
 
 func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, req *http.Request) {
@@ -53,10 +54,11 @@ func (cfg *apiConfig) createUserHandler(w http.ResponseWriter, req *http.Request
 		return
 	}
 	newUser := User{
-		Id:        user.ID,
-		CreateAt:  user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+		Id:          user.ID,
+		CreateAt:    user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	}
 	respondWithJSON(w, 201, newUser)
 }
@@ -115,10 +117,45 @@ func (cfg *apiConfig) editUsersHandler(w http.ResponseWriter, req *http.Request)
 		return
 	}
 	updatedUser := User{
-		Id:        user.ID,
-		CreateAt:  user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+		Id:          user.ID,
+		CreateAt:    user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	}
 	respondWithJSON(w, 200, updatedUser)
+}
+
+func (cfg *apiConfig) upgradeUsersHandler(w http.ResponseWriter, req *http.Request) {
+	type RequestBody struct {
+		Event string `json:"event"`
+		Data  struct {
+			UserID uuid.UUID `json:"user_id"`
+		} `json:"data"`
+	}
+	decoder := json.NewDecoder(req.Body)
+	requestBody := RequestBody{}
+	err := decoder.Decode(&requestBody)
+	if err != nil {
+		log.Printf("Error decoding request body: %s", err)
+		respondWithError(w, 500, "Something went wrong")
+		return
+	}
+
+	if requestBody.Event != "user.upgraded" {
+		log.Printf("Wrong event, cannot upgrade. Expected: \"user.upgraded\" Got: %s", requestBody.Event)
+		w.WriteHeader(204)
+		return
+	}
+
+	err = cfg.db.UpgradeUser(req.Context(), requestBody.Data.UserID)
+	if err != nil {
+		log.Printf("Failed to upgrade user to chirpy red: %v", err)
+		respondWithError(w, 404, "Could not upgrade user")
+		return
+	}
+
+	log.Printf("User upgraded to chirpy red successfully")
+	w.WriteHeader(204)
+
 }
