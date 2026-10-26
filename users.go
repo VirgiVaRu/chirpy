@@ -127,6 +127,19 @@ func (cfg *apiConfig) editUsersHandler(w http.ResponseWriter, req *http.Request)
 }
 
 func (cfg *apiConfig) upgradeUsersHandler(w http.ResponseWriter, req *http.Request) {
+
+	apiKey, err := auth.GetAPIKey(req.Header)
+	if err != nil {
+		log.Printf("Failed to retrieve Polka's API key: %v", err)
+		respondWithError(w, 401, "Authentication failed")
+		return
+	}
+	if apiKey != cfg.pk {
+		log.Printf("Wrong key")
+		respondWithError(w, 401, "Authentication failed")
+		return
+	}
+
 	type RequestBody struct {
 		Event string `json:"event"`
 		Data  struct {
@@ -135,7 +148,7 @@ func (cfg *apiConfig) upgradeUsersHandler(w http.ResponseWriter, req *http.Reque
 	}
 	decoder := json.NewDecoder(req.Body)
 	requestBody := RequestBody{}
-	err := decoder.Decode(&requestBody)
+	err = decoder.Decode(&requestBody)
 	if err != nil {
 		log.Printf("Error decoding request body: %s", err)
 		respondWithError(w, 500, "Something went wrong")
