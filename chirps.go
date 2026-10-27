@@ -71,11 +71,38 @@ func (cfg *apiConfig) chirpsHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, req *http.Request) {
-	chirps, err := cfg.db.GetAllChirps(req.Context())
-	if err != nil {
-		log.Printf("Error when retrieving chirps: %s", err)
-		respondWithError(w, 500, "Something went wrong")
+	authorID := req.URL.Query().Get("author_id")
+	if authorID == "" {
+		chirps, err := cfg.db.GetAllChirps(req.Context())
+		if err != nil {
+			log.Printf("Error when retrieving chirps: %s", err)
+			respondWithError(w, 500, "Something went wrong")
+			return
+		}
+		var jsonChirps []Chirp
+		for _, chirp := range chirps {
+			jsonChirps = append(jsonChirps, Chirp{
+				Id:        chirp.ID,
+				CreatedAt: chirp.CreatedAt,
+				UpdatedAt: chirp.UpdatedAt,
+				Body:      chirp.Body,
+				UserID:    chirp.UserID,
+			})
+		}
+		respondWithJSON(w, 200, jsonChirps)
 	} else {
+		userID, err := uuid.Parse(authorID)
+		if err != nil {
+			log.Printf("Failed to parse the user ID from the Author ID: %s", err)
+			respondWithError(w, 404, "Wrong user ID")
+			return
+		}
+		chirps, err := cfg.db.GetChirpsFromAuthor(req.Context(), userID)
+		if err != nil {
+			log.Printf("Error when retrieving chirps: %s", err)
+			respondWithError(w, 500, "Something went wrong")
+			return
+		}
 		var jsonChirps []Chirp
 		for _, chirp := range chirps {
 			jsonChirps = append(jsonChirps, Chirp{
@@ -88,6 +115,7 @@ func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, req *http.Reque
 		}
 		respondWithJSON(w, 200, jsonChirps)
 	}
+
 }
 
 func (cfg *apiConfig) getSingleChirpHandler(w http.ResponseWriter, req *http.Request) {
