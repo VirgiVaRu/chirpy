@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -72,6 +73,8 @@ func (cfg *apiConfig) chirpsHandler(w http.ResponseWriter, req *http.Request) {
 
 func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, req *http.Request) {
 	authorID := req.URL.Query().Get("author_id")
+	sortType := req.URL.Query().Get("sort")
+	log.Printf("sortType is %v", sortType)
 	if authorID == "" {
 		chirps, err := cfg.db.GetAllChirps(req.Context())
 		if err != nil {
@@ -87,6 +90,11 @@ func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, req *http.Reque
 				UpdatedAt: chirp.UpdatedAt,
 				Body:      chirp.Body,
 				UserID:    chirp.UserID,
+			})
+		}
+		if sortType == "desc" {
+			sort.Slice(jsonChirps, func(i, j int) bool {
+				return jsonChirps[i].CreatedAt.After(jsonChirps[j].CreatedAt)
 			})
 		}
 		respondWithJSON(w, 200, jsonChirps)
@@ -111,6 +119,11 @@ func (cfg *apiConfig) getAllChirpsHandler(w http.ResponseWriter, req *http.Reque
 				UpdatedAt: chirp.UpdatedAt,
 				Body:      chirp.Body,
 				UserID:    chirp.UserID,
+			})
+		}
+		if sortType == "desc" {
+			sort.Slice(jsonChirps, func(i, j int) bool {
+				return jsonChirps[i].CreatedAt.Before(jsonChirps[j].CreatedAt)
 			})
 		}
 		respondWithJSON(w, 200, jsonChirps)
